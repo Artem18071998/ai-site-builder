@@ -39,6 +39,7 @@ export async function generateSite(
   description: string,
   apiKey: string,
   model: string,
+  fallbackModel?: string,
 ): Promise<SitePage> {
   const text = description.trim()
   if (text.length < 10) {
@@ -48,21 +49,37 @@ export async function generateSite(
     throw new GenerationError('Описание слишком длинное (максимум 1500 символов).', 400)
   }
 
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
-        contents: [{ role: 'user', parts: [{ text: `Описание бизнеса:\n"""${text}"""` }] }],
-        generationConfig: { responseMimeType: 'application/json', temperature: 0.7 },
-      }),
-    },
-  )
+    const body = JSON.stringify({
+    systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+    contents: [{ role: 'user', parts: [{ text: `Описание бизнеса:\n"""${text}"""` }] }],
+    generationConfig: { responseMimeType: 'application/json', temperature: 0.7 },
+  })
 
+  const models = [model, fallbackModel].filter(Boolean) as string[]
+  let res: Response | undefined
+
+  for (const m of models) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+          body,
+        },
+      )
+      if (res.status !== 503) break
+      await new Promise((r) => setTimeout(r, 1500))
+    }
+    if (res && res.status !== 503) break
+  }
+
+  if (!res) throw new GenerationError('Не удалось обратиться к сервису AI.', 502)
   if (res.status === 429) {
     throw new GenerationError('Лимит запросов исчерпан. Попробуйте через минуту.', 429)
+  }
+  if (res.status === 503) {
+    throw new GenerationError('AI-сервис сейчас перегружен. Попробуйте через минуту.', 503)
   }
   if (!res.ok) {
     console.error('Gemini error', res.status, await res.text())

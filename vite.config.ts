@@ -24,7 +24,8 @@ function apiPlugin(env: Record<string, string>): Plugin {
           const page = await generateSite(
             String(description ?? ''),
             env.GEMINI_API_KEY,
-            env.GEMINI_MODEL || 'gemini-flash-latest',
+  env.GEMINI_MODEL || 'gemini-3.1-flash-lite',
+  env.GEMINI_FALLBACK_MODEL,
           )
           send(200, page)
         } catch (e) {
