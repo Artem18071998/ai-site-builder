@@ -27,7 +27,11 @@ export function Services({ block, accent }: { block: ServicesBlock; accent: stri
               {item.description && <p className="text-sm text-slate-500">{item.description}</p>}
             </div>
             <span className="whitespace-nowrap font-semibold" style={{ color: accent }}>
-              {item.price}
+              {item.price && (
+  <span className="whitespace-nowrap font-semibold" style={{ color: accent }}>
+    {item.price}
+  </span>
+)}
             </span>
           </li>
         ))}
@@ -57,9 +61,9 @@ export function Contacts({ block }: { block: ContactsBlock }) {
   return (
     <section className="bg-slate-900 px-8 py-16 text-center text-white">
       <h3 className="mb-6 text-2xl font-semibold">{block.title}</h3>
-      <p>{block.address}</p>
-      <p className="mt-1">{block.phone}</p>
-      <p className="mt-1 text-slate-400">{block.hours}</p>
+      {block.address && <p>{block.address}</p>}
+      {block.phone && <p className="mt-1">{block.phone}</p>}
+      {block.hours && <p className="mt-1 text-slate-400">{block.hours}</p>}
     </section>
   )
 }

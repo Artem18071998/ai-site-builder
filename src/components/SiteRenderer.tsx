@@ -16,7 +16,8 @@ export default function SiteRenderer({ page }: { page: SitePage }) {
           case 'features':
             return <Features key={i} block={block} accent={page.accent} />
           case 'contacts':
-            return <Contacts key={i} block={block} />
+  if (!block.address && !block.phone && !block.hours) return null
+  return <Contacts key={i} block={block} />
         }
       })}
     </div>
