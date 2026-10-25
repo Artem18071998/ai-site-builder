@@ -20,13 +20,13 @@ function apiPlugin(env: Record<string, string>): Plugin {
         try {
           const chunks: Buffer[] = []
           for await (const chunk of req) chunks.push(chunk as Buffer)
-          const { description } = JSON.parse(Buffer.concat(chunks).toString() || '{}')
-          const page = await generateSite(
-            String(description ?? ''),
-            env.GEMINI_API_KEY,
+          const body = JSON.parse(Buffer.concat(chunks).toString() || '{}')
+const page = await generateSite(
+  body,
+  env.GEMINI_API_KEY,
   env.GEMINI_MODEL || 'gemini-3.1-flash-lite',
   env.GEMINI_FALLBACK_MODEL,
-          )
+)
           send(200, page)
         } catch (e) {
           if (e instanceof GenerationError) return send(e.status, { error: e.message })

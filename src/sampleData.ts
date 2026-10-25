@@ -3,6 +3,7 @@ import type { SitePage } from './types'
 export const sampleBarbershop: SitePage = {
   businessName: 'Sharp Cut',
   accent: '#0f766e',
+  theme: 'dark',
   blocks: [
     {
       type: 'hero',

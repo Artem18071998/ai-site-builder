@@ -1,23 +1,88 @@
 import { useState } from 'react'
 import SiteRenderer from './components/SiteRenderer'
+import type { Path } from './components/editContext'
 import { sampleBarbershop } from './sampleData'
+import { themes, type ThemeName } from './themes'
 import type { SitePage } from './types'
 
+type Service = { name: string; price: string }
+type Form = {
+  description: string
+  name: string
+  city: string
+  phone: string
+  telegram: string
+  address: string
+  hours: string
+  services: Service[]
+}
+
+const emptyForm: Form = {
+  description: '',
+  name: '',
+  city: '',
+  phone: '',
+  telegram: '',
+  address: '',
+  hours: '',
+  services: [{ name: '', price: '' }],
+}
+
+const baseInput =
+  'rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200'
+const inputCls = `w-full ${baseInput}`
+
+function setIn(node: unknown, path: Path, value: string): unknown {
+  if (path.length === 0) return value
+  const [key, ...rest] = path
+  if (Array.isArray(node)) {
+    const copy = [...node]
+    copy[key as number] = setIn(node[key as number], rest, value)
+    return copy
+  }
+  const obj = node as Record<string, unknown>
+  return { ...obj, [key]: setIn(obj[key], rest, value) }
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="block space-y-1">
+      <span className="text-xs font-medium text-slate-600">{label}</span>
+      {children}
+    </label>
+  )
+}
+
 export default function App() {
-  const [description, setDescription] = useState('')
+  const [form, setForm] = useState<Form>(emptyForm)
   const [page, setPage] = useState<SitePage | null>(null)
   const [loading, setLoading] = useState(false)
+  const [cooldown, setCooldown] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isDemo, setIsDemo] = useState(false)
+  const [editing, setEditing] = useState(false)
+
+  const set = <K extends keyof Form>(key: K, value: Form[K]) =>
+    setForm((f) => ({ ...f, [key]: value }))
+
+  const updateService = (idx: number, patch: Partial<Service>) =>
+    set(
+      'services',
+      form.services.map((s, i) => (i === idx ? { ...s, ...patch } : s)),
+    )
 
   async function handleGenerate() {
+    if (cooldown || loading) return
     setLoading(true)
     setError(null)
     try {
       const res = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ description }),
+        body: JSON.stringify({
+          ...form,
+          services: form.services.filter((s) => s.name.trim()),
+        }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Ошибка генерации')
@@ -29,37 +94,107 @@ export default function App() {
       setIsDemo(true)
     } finally {
       setLoading(false)
+      setCooldown(true)
+      setTimeout(() => setCooldown(false), 15000)
     }
   }
 
+  const handleEdit = (path: Path, value: string) =>
+    setPage((p) => (p ? (setIn(p, path, value) as SitePage) : p))
+
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
-      <header className="border-b border-slate-200 bg-white px-6 py-4">
-        <h1 className="text-xl font-bold">AI Site Builder</h1>
-        <p className="text-sm text-slate-500">Опишите бизнес, получите сайт-визитку</p>
+    <div className="min-h-screen bg-slate-100 text-slate-900">
+      <header className="border-b border-slate-200 bg-white/80 px-6 py-4 backdrop-blur">
+        <div className="mx-auto flex max-w-7xl items-baseline gap-3">
+          <h1 className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-xl font-bold text-transparent">
+            AI Site Builder
+          </h1>
+          <p className="text-sm text-slate-500">Сайт-визитка за пару минут</p>
+        </div>
       </header>
 
-      <main className="grid gap-6 p-6 md:grid-cols-[360px_1fr]">
-        <section className="space-y-3">
-          <label htmlFor="description" className="block text-sm font-medium">
-            Опишите ваш бизнес
-          </label>
-          <textarea
-            id="description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            rows={8}
-            maxLength={1500}
-            placeholder="Барбершоп в Киеве, 3 мастера, стрижка от 500 грн, работаем с 10 до 20"
-            className="w-full rounded-lg border border-slate-300 bg-white p-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-          />
+      <main className="mx-auto grid max-w-7xl gap-6 p-6 lg:grid-cols-[400px_1fr]">
+        <section className="space-y-4 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+          <Field label="Чем вы занимаетесь *">
+            <textarea
+              rows={4}
+              maxLength={1500}
+              value={form.description}
+              onChange={(e) => set('description', e.target.value)}
+              placeholder="Веб-студия: делаем сайты и интернет-магазины, поддержка после запуска"
+              className={inputCls}
+            />
+          </Field>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Название">
+              <input className={inputCls} value={form.name} onChange={(e) => set('name', e.target.value)} />
+            </Field>
+            <Field label="Город">
+              <input className={inputCls} value={form.city} onChange={(e) => set('city', e.target.value)} />
+            </Field>
+          </div>
+
+          <div className="space-y-2">
+            <span className="text-xs font-medium text-slate-600">Услуги и цены</span>
+            {form.services.map((s, idx) => (
+              <div key={idx} className="flex gap-2">
+                <input
+  className={`${baseInput} min-w-0 flex-1`}
+  placeholder="Услуга"
+  value={s.name}
+  onChange={(e) => updateService(idx, { name: e.target.value })}
+/>
+<input
+  className={`${baseInput} w-28 shrink-0`}
+  placeholder="Цена"
+  value={s.price}
+  onChange={(e) => updateService(idx, { price: e.target.value })}
+/>
+                {form.services.length > 1 && (
+                  <button
+                    onClick={() => set('services', form.services.filter((_, i) => i !== idx))}
+                    className="rounded-lg px-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                    aria-label="Удалить услугу"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            ))}
+            {form.services.length < 8 && (
+              <button
+                onClick={() => set('services', [...form.services, { name: '', price: '' }])}
+                className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
+              >
+                + Добавить услугу
+              </button>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Телефон">
+              <input className={inputCls} value={form.phone} onChange={(e) => set('phone', e.target.value)} placeholder="+380..." />
+            </Field>
+            <Field label="Telegram">
+              <input className={inputCls} value={form.telegram} onChange={(e) => set('telegram', e.target.value)} placeholder="@username" />
+            </Field>
+            <Field label="Адрес">
+              <input className={inputCls} value={form.address} onChange={(e) => set('address', e.target.value)} />
+            </Field>
+            <Field label="График">
+              <input className={inputCls} value={form.hours} onChange={(e) => set('hours', e.target.value)} placeholder="Пн-Пт 10:00-19:00" />
+            </Field>
+          </div>
+
           <button
             onClick={handleGenerate}
-            disabled={!description.trim() || loading}
-            className="w-full rounded-lg bg-blue-600 px-4 py-2 font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+            disabled={form.description.trim().length < 10 || loading || cooldown}
+            className="w-full rounded-xl bg-indigo-600 px-4 py-2.5 font-medium text-white shadow-sm transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-300"
           >
-            {loading ? 'Генерирую...' : 'Сгенерировать'}
+            {loading ? 'Генерирую...' : cooldown ? 'Подождите немного...' : 'Сгенерировать'}
           </button>
+
           {error && (
             <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
               {error} Показан пример страницы.
@@ -67,19 +202,64 @@ export default function App() {
           )}
         </section>
 
-        <section className="min-h-96 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          {isDemo && (
-            <p className="bg-amber-50 px-4 py-2 text-xs text-amber-800">
-              Это пример, а не ваша страница.
-            </p>
-          )}
-          {page ? (
-            <SiteRenderer page={page} />
-          ) : (
-            <p className="p-6 text-slate-400">
-              Здесь появится ваша страница. Напишите описание слева.
-            </p>
-          )}
+        <section className="lg:sticky lg:top-6 lg:self-start">
+          <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
+            <div className="flex items-center gap-1.5 border-b border-slate-200 bg-slate-50 px-4 py-2.5">
+              <span className="size-2.5 rounded-full bg-red-400" />
+              <span className="size-2.5 rounded-full bg-amber-400" />
+              <span className="size-2.5 rounded-full bg-emerald-400" />
+              <span className="ml-3 text-xs text-slate-400">превью</span>
+            </div>
+
+            {page && (
+              <div className="flex flex-wrap items-center gap-4 border-b border-slate-200 px-4 py-2.5 text-sm">
+                <label className="flex items-center gap-2">
+                  <input type="checkbox" checked={editing} onChange={(e) => setEditing(e.target.checked)} />
+                  Править текст
+                </label>
+                <div className="flex gap-1">
+                  {(Object.keys(themes) as ThemeName[]).map((name) => (
+                    <button
+                      key={name}
+                      onClick={() => setPage({ ...page, theme: name })}
+                      className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                        page.theme === name
+                          ? 'bg-indigo-600 text-white'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      {themes[name].label}
+                    </button>
+                  ))}
+                </div>
+                <label className="flex items-center gap-2">
+                  Цвет
+                  <input
+                    type="color"
+                    value={page.accent}
+                    onChange={(e) => setPage({ ...page, accent: e.target.value })}
+                    className="h-6 w-8 cursor-pointer rounded border border-slate-300"
+                  />
+                </label>
+              </div>
+            )}
+
+            {isDemo && (
+              <p className="bg-amber-50 px-4 py-2 text-xs text-amber-800">
+                Это пример, а не ваша страница.
+              </p>
+            )}
+
+            <div className="max-h-[75vh] min-h-96 overflow-auto">
+              {page ? (
+                <SiteRenderer page={page} editable={editing} onEdit={handleEdit} />
+              ) : (
+                <p className="p-8 text-slate-400">
+                  Здесь появится ваша страница. Заполните форму слева и нажмите «Сгенерировать».
+                </p>
+              )}
+            </div>
+          </div>
         </section>
       </main>
     </div>
