@@ -1,4 +1,4 @@
-import { useContext, type ElementType, type FocusEvent, type KeyboardEvent } from 'react'
+import { useContext, type ClipboardEvent, type ElementType, type FocusEvent, type KeyboardEvent } from 'react'
 import { EditContext, type Path } from './editContext'
 
 type Props = { path: Path; value: string; as?: ElementType; className?: string }
@@ -24,7 +24,7 @@ export function Editable({ path, value, as: Tag = 'span', className = '' }: Prop
           e.currentTarget.blur()
         }
       }}
-      onPaste={(e) => {
+      onPaste={(e: ClipboardEvent<HTMLElement>) => {
         e.preventDefault()
         document.execCommand('insertText', false, e.clipboardData.getData('text/plain'))
       }}
