@@ -1,3 +1,6 @@
+import { downloadHtml } from './export'
+import { CONTACT_TELEGRAM } from './config'
+import { telegramUrl } from './links'
 import { useState } from 'react'
 import SiteRenderer from './components/SiteRenderer'
 import type { Path } from './components/editContext'
@@ -187,6 +190,12 @@ export default function App() {
             </Field>
           </div>
 
+<p className="text-xs leading-relaxed text-slate-500">
+  Текст из поля «Чем вы занимаетесь» обрабатывается сервисом Google AI. Не пишите там личные
+  данные. Телефон, адрес и Telegram в AI не отправляются и ничего не сохраняются на нашем
+  сервере.
+</p>
+
           <button
             onClick={handleGenerate}
             disabled={form.description.trim().length < 10 || loading || cooldown}
@@ -241,6 +250,14 @@ export default function App() {
                     className="h-6 w-8 cursor-pointer rounded border border-slate-300"
                   />
                 </label>
+                {!isDemo && (
+  <button
+    onClick={() => downloadHtml(page)}
+    className="ml-auto rounded-full bg-slate-900 px-4 py-1.5 text-xs font-medium text-white transition hover:bg-slate-700"
+  >
+    Скачать сайт (HTML)
+  </button>
+)}
               </div>
             )}
 
@@ -260,6 +277,16 @@ export default function App() {
               )}
             </div>
           </div>
+          {page && !isDemo && (
+  <a
+    href={telegramUrl(CONTACT_TELEGRAM)}
+    target="_blank"
+    rel="noreferrer"
+    className="mt-4 block rounded-2xl bg-indigo-600 p-4 text-center text-sm font-medium text-white shadow-sm transition hover:bg-indigo-700"
+  >
+    Нужен многостраничный сайт, магазин или доработка? Напишите мне в Telegram
+  </a>
+)}
         </section>
       </main>
     </div>
