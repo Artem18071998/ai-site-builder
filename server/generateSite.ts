@@ -147,8 +147,12 @@ export async function generateSite(
   if (res.status === 503) {
     throw new GenerationError('AI-сервис сейчас перегружен. Попробуйте через минуту.', 503)
   }
-  if (!res.ok) {
-    console.error('Gemini error', res.status, await res.text())
+    if (!res.ok) {
+    const errText = await res.text()
+    console.error('Gemini error', res.status, errText)
+    if (res.status === 401 || res.status === 403 || /API key/i.test(errText)) {
+      throw new GenerationError('Google отклонил ключ API. Проверьте, что он скопирован полностью.', 401)
+    }
     throw new GenerationError('Сервис AI вернул ошибку. Попробуйте позже.', 502)
   }
 

@@ -1,7 +1,6 @@
 import react from '@vitejs/plugin-react'
 import { defineConfig, loadEnv, type Plugin } from 'vite'
 import tailwindcss from '@tailwindcss/vite'
-// ...ваш импорт react-плагина остаётся как есть
 import { generateSite, GenerationError } from './server/generateSite.ts'
 
 function apiPlugin(env: Record<string, string>): Plugin {
@@ -15,18 +14,21 @@ function apiPlugin(env: Record<string, string>): Plugin {
           res.end(JSON.stringify(body))
         }
         if (req.method !== 'POST') return send(405, { error: 'Метод не поддерживается' })
-        if (!env.GEMINI_API_KEY) return send(500, { error: 'На сервере не задан GEMINI_API_KEY' })
+
+        const headerKey = req.headers['x-user-api-key']
+        const apiKey = (typeof headerKey === 'string' && headerKey.trim()) || env.GEMINI_API_KEY
+        if (!apiKey) return send(500, { error: 'На сервере не задан GEMINI_API_KEY' })
 
         try {
           const chunks: Buffer[] = []
           for await (const chunk of req) chunks.push(chunk as Buffer)
           const body = JSON.parse(Buffer.concat(chunks).toString() || '{}')
-const page = await generateSite(
-  body,
-  env.GEMINI_API_KEY,
-  env.GEMINI_MODEL || 'gemini-3.1-flash-lite',
-  env.GEMINI_FALLBACK_MODEL,
-)
+          const page = await generateSite(
+            body,
+            apiKey,
+            env.GEMINI_MODEL || 'gemini-3.1-flash-lite',
+            env.GEMINI_FALLBACK_MODEL,
+          )
           send(200, page)
         } catch (e) {
           if (e instanceof GenerationError) return send(e.status, { error: e.message })

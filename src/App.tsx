@@ -1,7 +1,7 @@
+import { useState } from 'react'
 import { downloadHtml } from './export'
 import { CONTACT_TELEGRAM } from './config'
 import { telegramUrl } from './links'
-import { useState } from 'react'
 import SiteRenderer from './components/SiteRenderer'
 import type { Path } from './components/editContext'
 import { sampleBarbershop } from './sampleData'
@@ -64,6 +64,23 @@ export default function App() {
   const [error, setError] = useState<string | null>(null)
   const [isDemo, setIsDemo] = useState(false)
   const [editing, setEditing] = useState(false)
+  const [userKey, setUserKey] = useState(() => {
+    try {
+      return localStorage.getItem('gemini-key') ?? ''
+    } catch {
+      return ''
+    }
+  })
+
+  function saveKey(value: string) {
+    setUserKey(value)
+    try {
+      if (value.trim()) localStorage.setItem('gemini-key', value.trim())
+      else localStorage.removeItem('gemini-key')
+    } catch {
+      /* хранилище недоступно: работаем без сохранения */
+    }
+  }
 
   const set = <K extends keyof Form>(key: K, value: Form[K]) =>
     setForm((f) => ({ ...f, [key]: value }))
@@ -81,13 +98,16 @@ export default function App() {
     try {
       const res = await fetch('/api/generate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(userKey.trim() ? { 'x-user-api-key': userKey.trim() } : {}),
+        },
         body: JSON.stringify({
           ...form,
           services: form.services.filter((s) => s.name.trim()),
         }),
       })
-      const data = await res.json()
+      const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error ?? 'Ошибка генерации')
       setPage(data as SitePage)
       setIsDemo(false)
@@ -143,17 +163,17 @@ export default function App() {
             {form.services.map((s, idx) => (
               <div key={idx} className="flex gap-2">
                 <input
-  className={`${baseInput} min-w-0 flex-1`}
-  placeholder="Услуга"
-  value={s.name}
-  onChange={(e) => updateService(idx, { name: e.target.value })}
-/>
-<input
-  className={`${baseInput} w-28 shrink-0`}
-  placeholder="Цена"
-  value={s.price}
-  onChange={(e) => updateService(idx, { price: e.target.value })}
-/>
+                  className={`${baseInput} min-w-0 flex-1`}
+                  placeholder="Услуга"
+                  value={s.name}
+                  onChange={(e) => updateService(idx, { name: e.target.value })}
+                />
+                <input
+                  className={`${baseInput} w-28 shrink-0`}
+                  placeholder="Цена"
+                  value={s.price}
+                  onChange={(e) => updateService(idx, { price: e.target.value })}
+                />
                 {form.services.length > 1 && (
                   <button
                     onClick={() => set('services', form.services.filter((_, i) => i !== idx))}
@@ -190,11 +210,29 @@ export default function App() {
             </Field>
           </div>
 
-<p className="text-xs leading-relaxed text-slate-500">
-  Текст из поля «Чем вы занимаетесь» обрабатывается сервисом Google AI. Не пишите там личные
-  данные. Телефон, адрес и Telegram в AI не отправляются и ничего не сохраняются на нашем
-  сервере.
-</p>
+          <details className="rounded-lg border border-slate-200 p-3 text-xs text-slate-600">
+            <summary className="cursor-pointer font-medium">
+              Свой ключ Gemini (если бесплатный лимит исчерпан)
+            </summary>
+            <p className="mt-2 leading-relaxed">
+              Бесплатный ключ создаётся в Google AI Studio. Он хранится только в вашем браузере и
+              отправляется вместе с запросом, на нашем сервере не сохраняется.
+            </p>
+            <input
+              type="password"
+              autoComplete="off"
+              value={userKey}
+              onChange={(e) => saveKey(e.target.value)}
+              placeholder="AIza..."
+              className={`${inputCls} mt-2`}
+            />
+          </details>
+
+          <p className="text-xs leading-relaxed text-slate-500">
+            Текст из поля «Чем вы занимаетесь» обрабатывается сервисом Google AI, не пишите там
+            личные данные. Телефон, адрес и Telegram в AI не отправляются. Страницы мы не
+            сохраняем. Для лимитов на сутки временно хранится обезличенный отпечаток IP-адреса.
+          </p>
 
           <button
             onClick={handleGenerate}
@@ -251,13 +289,13 @@ export default function App() {
                   />
                 </label>
                 {!isDemo && (
-  <button
-    onClick={() => downloadHtml(page)}
-    className="ml-auto rounded-full bg-slate-900 px-4 py-1.5 text-xs font-medium text-white transition hover:bg-slate-700"
-  >
-    Скачать сайт (HTML)
-  </button>
-)}
+                  <button
+                    onClick={() => downloadHtml(page)}
+                    className="ml-auto rounded-full bg-slate-900 px-4 py-1.5 text-xs font-medium text-white transition hover:bg-slate-700"
+                  >
+                    Скачать сайт (HTML)
+                  </button>
+                )}
               </div>
             )}
 
@@ -277,16 +315,17 @@ export default function App() {
               )}
             </div>
           </div>
+
           {page && !isDemo && (
-  <a
-    href={telegramUrl(CONTACT_TELEGRAM)}
-    target="_blank"
-    rel="noreferrer"
-    className="mt-4 block rounded-2xl bg-indigo-600 p-4 text-center text-sm font-medium text-white shadow-sm transition hover:bg-indigo-700"
-  >
-    Нужен многостраничный сайт, магазин или доработка? Напишите мне в Telegram
-  </a>
-)}
+            <a
+              href={telegramUrl(CONTACT_TELEGRAM)}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-4 block rounded-2xl bg-indigo-600 p-4 text-center text-sm font-medium text-white shadow-sm transition hover:bg-indigo-700"
+            >
+              Нужен многостраничный сайт, магазин или доработка? Напишите мне в Telegram
+            </a>
+          )}
         </section>
       </main>
     </div>
