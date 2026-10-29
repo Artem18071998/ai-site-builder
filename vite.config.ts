@@ -13,11 +13,11 @@ function apiPlugin(env: Record<string, string>): Plugin {
           res.statusCode = status
           res.end(JSON.stringify(body))
         }
-        if (req.method !== 'POST') return send(405, { error: 'Метод не поддерживается' })
+        if (req.method !== 'POST') return send(405, { code: 'BAD_REQUEST', error: 'Method not allowed' })
 
         const headerKey = req.headers['x-user-api-key']
         const apiKey = (typeof headerKey === 'string' && headerKey.trim()) || env.GEMINI_API_KEY
-        if (!apiKey) return send(500, { error: 'На сервере не задан GEMINI_API_KEY' })
+        if (!apiKey) return send(500, { code: 'NOT_CONFIGURED', error: 'GEMINI_API_KEY is not set' })
 
         try {
           const chunks: Buffer[] = []
@@ -31,9 +31,9 @@ function apiPlugin(env: Record<string, string>): Plugin {
           )
           send(200, page)
         } catch (e) {
-          if (e instanceof GenerationError) return send(e.status, { error: e.message })
+          if (e instanceof GenerationError) return send(e.status, { code: e.code, error: e.message })
           console.error(e)
-          send(500, { error: 'Внутренняя ошибка сервера' })
+          send(500, { code: 'INTERNAL', error: 'Internal server error' })
         }
       })
     },

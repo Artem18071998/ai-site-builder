@@ -1,31 +1,41 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { downloadHtml } from './export'
-import { CONTACT_TELEGRAM } from './config'
+import { CONTACT_EMAIL, CONTACT_TELEGRAM, CONTACT_UPWORK } from './config'
 import { telegramUrl } from './links'
+import { SITE_LANGUAGES, useI18n, type Key, type Lang } from './i18n'
 import SiteRenderer from './components/SiteRenderer'
 import type { Path } from './components/editContext'
-import { sampleBarbershop } from './sampleData'
 import { themes, type ThemeName } from './themes'
-import type { SitePage } from './types'
+import type { SiteLang, SitePage } from './types'
 
 type Service = { name: string; price: string }
 type Form = {
   description: string
   name: string
   city: string
+  language: SiteLang
   phone: string
+  email: string
+  whatsapp: string
   telegram: string
+  instagram: string
   address: string
   hours: string
   services: Service[]
 }
 
+type Err = { code: string; fallback?: string }
+
 const emptyForm: Form = {
   description: '',
   name: '',
   city: '',
+  language: 'en',
   phone: '',
+  email: '',
+  whatsapp: '',
   telegram: '',
+  instagram: '',
   address: '',
   hours: '',
   services: [{ name: '', price: '' }],
@@ -47,7 +57,7 @@ function setIn(node: unknown, path: Path, value: string): unknown {
   return { ...obj, [key]: setIn(obj[key], rest, value) }
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="block space-y-1">
       <span className="text-xs font-medium text-slate-600">{label}</span>
@@ -56,13 +66,75 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   )
 }
 
+function TextField(props: {
+  label: string
+  value: string
+  onChange: (value: string) => void
+  max: number
+  placeholder?: string
+  type?: string
+}) {
+  return (
+    <Field label={props.label}>
+      <input
+        className={inputCls}
+        type={props.type ?? 'text'}
+        maxLength={props.max}
+        value={props.value}
+        placeholder={props.placeholder}
+        onChange={(e) => props.onChange(e.target.value)}
+      />
+    </Field>
+  )
+}
+
+function CustomSiteCta({ t }: { t: (key: Key) => string }) {
+  const btn = 'rounded-full px-4 py-2 text-sm font-medium transition'
+  return (
+    <div className="mt-4 rounded-2xl bg-indigo-600 p-5 text-center text-white shadow-sm">
+      <p className="font-semibold">{t('cta.title')}</p>
+      <p className="mx-auto mt-1 max-w-md text-sm text-indigo-100">{t('cta.text')}</p>
+      <div className="mt-4 flex flex-wrap justify-center gap-2">
+        {CONTACT_EMAIL && (
+          <a
+            href={`mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent('Custom website')}`}
+            className={`${btn} bg-white text-indigo-700 hover:bg-indigo-50`}
+          >
+            {t('cta.email')}
+          </a>
+        )}
+        {CONTACT_TELEGRAM && (
+          <a
+            href={telegramUrl(CONTACT_TELEGRAM)}
+            target="_blank"
+            rel="noreferrer"
+            className={`${btn} bg-indigo-500 hover:bg-indigo-400`}
+          >
+            Telegram
+          </a>
+        )}
+        {CONTACT_UPWORK && (
+          <a
+            href={CONTACT_UPWORK}
+            target="_blank"
+            rel="noreferrer"
+            className={`${btn} bg-indigo-500 hover:bg-indigo-400`}
+          >
+            Upwork
+          </a>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function App() {
-  const [form, setForm] = useState<Form>(emptyForm)
+  const { lang, setLang, t, te } = useI18n()
+  const [form, setForm] = useState<Form>(() => ({ ...emptyForm, language: lang }))
   const [page, setPage] = useState<SitePage | null>(null)
   const [loading, setLoading] = useState(false)
   const [cooldown, setCooldown] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [isDemo, setIsDemo] = useState(false)
+  const [err, setErr] = useState<Err | null>(null)
   const [editing, setEditing] = useState(false)
   const [userKey, setUserKey] = useState(() => {
     try {
@@ -94,7 +166,7 @@ export default function App() {
   async function handleGenerate() {
     if (cooldown || loading) return
     setLoading(true)
-    setError(null)
+    setErr(null)
     try {
       const res = await fetch('/api/generate', {
         method: 'POST',
@@ -108,13 +180,13 @@ export default function App() {
         }),
       })
       const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.error ?? 'Ошибка генерации')
+      if (!res.ok) {
+        setErr({ code: data.code ?? 'UNKNOWN', fallback: data.error })
+        return
+      }
       setPage(data as SitePage)
-      setIsDemo(false)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Неизвестная ошибка')
-      setPage(sampleBarbershop)
-      setIsDemo(true)
+    } catch {
+      setErr({ code: 'NETWORK' })
     } finally {
       setLoading(false)
       setCooldown(true)
@@ -125,53 +197,82 @@ export default function App() {
   const handleEdit = (path: Path, value: string) =>
     setPage((p) => (p ? (setIn(p, path, value) as SitePage) : p))
 
+  const limitHit = err?.code === 'LIMIT_IP' || err?.code === 'LIMIT_GLOBAL' || err?.code === 'LIMIT_IP_OWN'
+
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900">
       <header className="border-b border-slate-200 bg-white/80 px-6 py-4 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center gap-3">
-  <img src="/favicon.svg" alt="" className="size-8" />
-  <h1 className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-xl font-bold text-transparent">
-    AI Site Builder
-  </h1>
-  <p className="text-sm text-slate-500">Сайт-визитка за пару минут</p>
-</div>
+          <img src="/public/favicon.svg" alt="" className="size-8" />
+          <h1 className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-xl font-bold text-transparent">
+            AI Site Builder
+          </h1>
+          <p className="hidden text-sm text-slate-500 sm:block">{t('tagline')}</p>
+          <div className="ml-auto flex gap-1">
+            {(['en', 'uk', 'ru'] as Lang[]).map((l) => (
+              <button
+                key={l}
+                onClick={() => setLang(l)}
+                className={`rounded-full px-2.5 py-1 text-xs font-medium transition ${
+                  lang === l
+                    ? 'bg-indigo-600 text-white'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                {l.toUpperCase()}
+              </button>
+            ))}
+          </div>
+        </div>
       </header>
 
       <main className="mx-auto grid max-w-7xl gap-6 p-6 lg:grid-cols-[400px_1fr]">
         <section className="space-y-4 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-          <Field label="Чем вы занимаетесь *">
+          <Field label={t('f.desc')}>
             <textarea
               rows={4}
               maxLength={1500}
               value={form.description}
               onChange={(e) => set('description', e.target.value)}
-              placeholder="Веб-студия: делаем сайты и интернет-магазины, поддержка после запуска"
+              placeholder={t('f.desc.ph')}
               className={inputCls}
             />
           </Field>
 
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Название">
-              <input className={inputCls} value={form.name} onChange={(e) => set('name', e.target.value)} />
-            </Field>
-            <Field label="Город">
-              <input className={inputCls} value={form.city} onChange={(e) => set('city', e.target.value)} />
-            </Field>
+            <TextField label={t('f.name')} value={form.name} max={80} onChange={(v) => set('name', v)} />
+            <TextField label={t('f.city')} value={form.city} max={60} onChange={(v) => set('city', v)} />
           </div>
 
+          <Field label={t('f.siteLang')}>
+            <select
+              className={inputCls}
+              value={form.language}
+              onChange={(e) => set('language', e.target.value as SiteLang)}
+            >
+              {SITE_LANGUAGES.map((l) => (
+                <option key={l.code} value={l.code}>
+                  {l.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+
           <div className="space-y-2">
-            <span className="text-xs font-medium text-slate-600">Услуги и цены</span>
+            <span className="text-xs font-medium text-slate-600">{t('f.services')}</span>
             {form.services.map((s, idx) => (
               <div key={idx} className="flex gap-2">
                 <input
                   className={`${baseInput} min-w-0 flex-1`}
-                  placeholder="Услуга"
+                  placeholder={t('f.service.ph')}
+                  maxLength={80}
                   value={s.name}
                   onChange={(e) => updateService(idx, { name: e.target.value })}
                 />
                 <input
                   className={`${baseInput} w-28 shrink-0`}
-                  placeholder="Цена"
+                  placeholder={t('f.price.ph')}
+                  maxLength={40}
                   value={s.price}
                   onChange={(e) => updateService(idx, { price: e.target.value })}
                 />
@@ -179,7 +280,7 @@ export default function App() {
                   <button
                     onClick={() => set('services', form.services.filter((_, i) => i !== idx))}
                     className="rounded-lg px-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
-                    aria-label="Удалить услугу"
+                    aria-label={t('f.removeService')}
                   >
                     ✕
                   </button>
@@ -191,34 +292,42 @@ export default function App() {
                 onClick={() => set('services', [...form.services, { name: '', price: '' }])}
                 className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
               >
-                + Добавить услугу
+                {t('f.addService')}
               </button>
             )}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Телефон">
-              <input className={inputCls} value={form.phone} onChange={(e) => set('phone', e.target.value)} placeholder="+380..." />
-            </Field>
-            <Field label="Telegram">
-              <input className={inputCls} value={form.telegram} onChange={(e) => set('telegram', e.target.value)} placeholder="@username" />
-            </Field>
-            <Field label="Адрес">
-              <input className={inputCls} value={form.address} onChange={(e) => set('address', e.target.value)} />
-            </Field>
-            <Field label="График">
-              <input className={inputCls} value={form.hours} onChange={(e) => set('hours', e.target.value)} placeholder="Пн-Пт 10:00-19:00" />
-            </Field>
+            <TextField label={t('f.phone')} value={form.phone} max={30} placeholder="+1 ..." onChange={(v) => set('phone', v)} />
+            <TextField label={t('f.email')} value={form.email} max={120} type="email" placeholder="hello@example.com" onChange={(v) => set('email', v)} />
+            <TextField label={t('f.whatsapp')} value={form.whatsapp} max={40} placeholder="+1 ..." onChange={(v) => set('whatsapp', v)} />
+            <TextField label={t('f.telegram')} value={form.telegram} max={60} placeholder="@username" onChange={(v) => set('telegram', v)} />
+            <TextField label={t('f.instagram')} value={form.instagram} max={60} placeholder="@username" onChange={(v) => set('instagram', v)} />
+            <TextField label={t('f.address')} value={form.address} max={120} onChange={(v) => set('address', v)} />
+            <div className="col-span-2">
+              <TextField label={t('f.hours')} value={form.hours} max={60} placeholder={t('f.hours.ph')} onChange={(v) => set('hours', v)} />
+            </div>
           </div>
 
           <details className="rounded-lg border border-slate-200 p-3 text-xs text-slate-600">
-            <summary className="cursor-pointer font-medium">
-              Свой ключ Gemini (если бесплатный лимит исчерпан)
-            </summary>
-            <p className="mt-2 leading-relaxed">
-              Бесплатный ключ создаётся в Google AI Studio. Он хранится только в вашем браузере и
-              отправляется вместе с запросом, на нашем сервере не сохраняется.
-            </p>
+            <summary className="cursor-pointer font-medium">{t('key.summary')}</summary>
+            <ol className="mt-2 list-decimal space-y-1 pl-4 leading-relaxed">
+              <li>
+                {t('key.s1a')}{' '}
+                <a
+                  href="https://aistudio.google.com/apikey"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-medium text-indigo-600 underline"
+                >
+                  Google AI Studio
+                </a>{' '}
+                {t('key.s1b')}
+              </li>
+              <li>{t('key.s2')}</li>
+              <li>{t('key.s3')}</li>
+            </ol>
+            <p className="mt-2 leading-relaxed">{t('key.stored')}</p>
             <input
               type="password"
               autoComplete="off"
@@ -229,24 +338,18 @@ export default function App() {
             />
           </details>
 
-          <p className="text-xs leading-relaxed text-slate-500">
-            Текст из поля «Чем вы занимаетесь» обрабатывается сервисом Google AI, не пишите там
-            личные данные. Телефон, адрес и Telegram в AI не отправляются. Страницы мы не
-            сохраняем. Для лимитов на сутки временно хранится обезличенный отпечаток IP-адреса.
-          </p>
+          <p className="text-xs leading-relaxed text-slate-500">{t('privacy')}</p>
 
           <button
             onClick={handleGenerate}
             disabled={form.description.trim().length < 10 || loading || cooldown}
             className="w-full rounded-xl bg-indigo-600 px-4 py-2.5 font-medium text-white shadow-sm transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-300"
           >
-            {loading ? 'Генерирую...' : cooldown ? 'Подождите немного...' : 'Сгенерировать'}
+            {loading ? t('btn.generating') : cooldown ? t('btn.wait') : t('btn.generate')}
           </button>
 
-          {error && (
-            <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
-              {error} Показан пример страницы.
-            </p>
+          {err && (
+            <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{te(err.code, err.fallback)}</p>
           )}
         </section>
 
@@ -256,14 +359,14 @@ export default function App() {
               <span className="size-2.5 rounded-full bg-red-400" />
               <span className="size-2.5 rounded-full bg-amber-400" />
               <span className="size-2.5 rounded-full bg-emerald-400" />
-              <span className="ml-3 text-xs text-slate-400">превью</span>
+              <span className="ml-3 text-xs text-slate-400">{t('preview')}</span>
             </div>
 
             {page && (
               <div className="flex flex-wrap items-center gap-4 border-b border-slate-200 px-4 py-2.5 text-sm">
                 <label className="flex items-center gap-2">
                   <input type="checkbox" checked={editing} onChange={(e) => setEditing(e.target.checked)} />
-                  Править текст
+                  {t('edit')}
                 </label>
                 <div className="flex gap-1">
                   {(Object.keys(themes) as ThemeName[]).map((name) => (
@@ -276,12 +379,12 @@ export default function App() {
                           : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                       }`}
                     >
-                      {themes[name].label}
+                      {t(`theme.${name}` as Key)}
                     </button>
                   ))}
                 </div>
                 <label className="flex items-center gap-2">
-                  Цвет
+                  {t('color')}
                   <input
                     type="color"
                     value={page.accent}
@@ -289,44 +392,25 @@ export default function App() {
                     className="h-6 w-8 cursor-pointer rounded border border-slate-300"
                   />
                 </label>
-                {!isDemo && (
-                  <button
-                    onClick={() => downloadHtml(page)}
-                    className="ml-auto rounded-full bg-slate-900 px-4 py-1.5 text-xs font-medium text-white transition hover:bg-slate-700"
-                  >
-                    Скачать сайт (HTML)
-                  </button>
-                )}
+                <button
+                  onClick={() => downloadHtml(page)}
+                  className="ml-auto rounded-full bg-slate-900 px-4 py-1.5 text-xs font-medium text-white transition hover:bg-slate-700"
+                >
+                  {t('download')}
+                </button>
               </div>
-            )}
-
-            {isDemo && (
-              <p className="bg-amber-50 px-4 py-2 text-xs text-amber-800">
-                Это пример, а не ваша страница.
-              </p>
             )}
 
             <div className="max-h-[75vh] min-h-96 overflow-auto">
               {page ? (
                 <SiteRenderer page={page} editable={editing} onEdit={handleEdit} />
               ) : (
-                <p className="p-8 text-slate-400">
-                  Здесь появится ваша страница. Заполните форму слева и нажмите «Сгенерировать».
-                </p>
+                <p className="p-8 text-slate-400">{t('empty')}</p>
               )}
             </div>
           </div>
 
-          {page && !isDemo && (
-            <a
-              href={telegramUrl(CONTACT_TELEGRAM)}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-4 block rounded-2xl bg-indigo-600 p-4 text-center text-sm font-medium text-white shadow-sm transition hover:bg-indigo-700"
-            >
-              Нужен многостраничный сайт, магазин или доработка? Напишите мне в Telegram
-            </a>
-          )}
+          {(page || limitHit) && <CustomSiteCta t={t} />}
         </section>
       </main>
     </div>

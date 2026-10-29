@@ -27,6 +27,8 @@ const json = (status: number, body: unknown) =>
     headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
   })
 
+const fail = (status: number, code: string, error: string) => json(status, { code, error })
+
 // Невалидное значение в настройках не должно отключать лимит
 const num = (value: string | undefined, fallback: number) => {
   const n = Number(value)
@@ -49,35 +51,43 @@ async function bump(kv: KV, key: string, limit: number) {
   return true
 }
 
+// Сколько раз посетители упёрлись в лимит: данные для решения о платных пакетах
+async function countHit(kv: KV, code: string, day: string) {
+  try {
+    const key = `hits:${code}:${day}`
+    const n = Number((await kv.get(key)) ?? 0)
+    await kv.put(key, String(n + 1), { expirationTtl: 5184000 })
+  } catch {
+    /* статистика не должна ломать ответ */
+  }
+}
+
 export const onRequestPost = async ({ request, env }: { request: Request; env: Env }) => {
   const origin = request.headers.get('origin')
   if (origin && new URL(origin).host !== new URL(request.url).host) {
-    return json(403, { error: 'Запрос с чужого сайта отклонён.' })
+    return fail(403, 'FOREIGN_ORIGIN', 'A request from another site was rejected.')
   }
 
   const country = request.headers.get('cf-ipcountry')
   if (country && BLOCKED.has(country)) {
-    return json(451, {
-      code: 'REGION',
-      error: 'Сервис пока недоступен в вашем регионе (ЕС, ЕЭЗ, Швейцария, Великобритания).',
-    })
+    return fail(451, 'REGION', 'The service is not available in your region yet.')
   }
 
   if (Number(request.headers.get('content-length') ?? 0) > 20_000) {
-    return json(413, { error: 'Слишком большой запрос.' })
+    return fail(413, 'TOO_LARGE', 'The request is too large.')
   }
 
   const userKey = request.headers.get('x-user-api-key')?.trim() ?? ''
   if (userKey && (userKey.length < 20 || userKey.length > 200 || /\s/.test(userKey))) {
-    return json(400, { error: 'Ключ API выглядит неверно.' })
+    return fail(400, 'BAD_KEY', 'The API key looks invalid.')
   }
 
   const apiKey = userKey || env.GEMINI_API_KEY
-  if (!apiKey) return json(500, { error: 'Сервис не настроен.' })
+  if (!apiKey) return fail(500, 'NOT_CONFIGURED', 'The service is not configured.')
 
   // Без хранилища счётчиков общую квоту не открываем
   if (!env.LIMITS && !userKey) {
-    return json(503, { error: 'Сервис временно недоступен.' })
+    return fail(503, 'UNAVAILABLE', 'The service is temporarily unavailable.')
   }
 
   if (env.LIMITS) {
@@ -86,18 +96,13 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
     const perIp = userKey ? 30 : num(env.PER_IP_DAILY, 3)
 
     if (!(await bump(env.LIMITS, `ip:${userKey ? 'own' : 'shared'}:${ip}:${day}`, perIp))) {
-      return json(429, {
-        code: 'LIMIT_IP',
-        error: userKey
-          ? 'Дневной лимит запросов исчерпан. Попробуйте завтра.'
-          : 'Вы использовали бесплатные генерации на сегодня. Вставьте свой ключ Gemini или попробуйте завтра.',
-      })
+      const code = userKey ? 'LIMIT_IP_OWN' : 'LIMIT_IP'
+      await countHit(env.LIMITS, code, day)
+      return fail(429, code, 'Daily request limit reached.')
     }
     if (!userKey && !(await bump(env.LIMITS, `global:${day}`, num(env.GLOBAL_DAILY, 150)))) {
-      return json(429, {
-        code: 'LIMIT_GLOBAL',
-        error: 'Общий лимит бесплатных генераций на сегодня исчерпан. Вставьте свой ключ Gemini или зайдите завтра.',
-      })
+      await countHit(env.LIMITS, 'LIMIT_GLOBAL', day)
+      return fail(429, 'LIMIT_GLOBAL', 'Free generations for today are used up.')
     }
   }
 
@@ -105,7 +110,7 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
   try {
     body = await request.json()
   } catch {
-    return json(400, { error: 'Некорректный запрос.' })
+    return fail(400, 'BAD_REQUEST', 'Invalid request.')
   }
 
   try {
@@ -117,8 +122,8 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
     )
     return json(200, page)
   } catch (e) {
-    if (e instanceof GenerationError) return json(e.status, { error: e.message })
+    if (e instanceof GenerationError) return fail(e.status, e.code, e.message)
     console.error(e)
-    return json(500, { error: 'Внутренняя ошибка сервера.' })
+    return fail(500, 'INTERNAL', 'Internal server error.')
   }
 }

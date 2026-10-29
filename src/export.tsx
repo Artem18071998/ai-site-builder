@@ -22,7 +22,7 @@ const escapeHtml = (s: string) =>
 export function buildHtml(page: SitePage) {
   const body = renderToStaticMarkup(<SiteRenderer page={page} />)
   return `<!doctype html>
-<html>
+<html lang="${escapeHtml(page.lang)}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">

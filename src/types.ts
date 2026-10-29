@@ -1,5 +1,8 @@
 import { z } from 'zod'
 
+export const SITE_LANGS = ['en', 'uk', 'ru', 'es', 'de', 'fr', 'pl', 'pt'] as const
+export type SiteLang = (typeof SITE_LANGS)[number]
+
 const heroSchema = z.object({
   type: z.literal('hero'),
   title: z.string().min(1),
@@ -33,7 +36,10 @@ const contactsSchema = z.object({
   title: z.string(),
   address: z.string().nullish(),
   phone: z.string().nullish(),
+  email: z.string().nullish(),
+  whatsapp: z.string().nullish(),
   telegram: z.string().nullish(),
+  instagram: z.string().nullish(),
   hours: z.string().nullish(),
 })
 
@@ -48,6 +54,7 @@ export const sitePageSchema = z.object({
   businessName: z.string().min(1),
   accent: z.string().regex(/^#[0-9a-fA-F]{6}$/).catch('#2563eb'),
   theme: z.enum(['modern', 'warm', 'dark']).catch('modern'),
+  lang: z.enum(SITE_LANGS).catch('en'),
   blocks: z.array(blockSchema).min(1).max(8),
 })
 
@@ -56,9 +63,13 @@ export const businessInputSchema = z.object({
   name: z.string().trim().max(80).default(''),
   city: z.string().trim().max(60).default(''),
   phone: z.string().trim().max(30).default(''),
+  email: z.string().trim().max(120).default(''),
+  whatsapp: z.string().trim().max(40).default(''),
   telegram: z.string().trim().max(60).default(''),
+  instagram: z.string().trim().max(60).default(''),
   address: z.string().trim().max(120).default(''),
   hours: z.string().trim().max(60).default(''),
+  language: z.enum(SITE_LANGS).catch('en'),
   services: z
     .array(
       z.object({

@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react'
 import type { ContactsBlock, SitePage } from '../types'
-import { phoneHref, telegramUrl } from '../links'
+import { mailtoHref, phoneHref, telegramUrl, whatsappUrl } from '../links'
 import { readableOn, themeStyle } from '../themes'
 import { Hero, Services, Features, Contacts } from './Blocks'
 import { Editable } from './Editable'
@@ -12,9 +12,11 @@ type Props = {
   onEdit?: (path: Path, value: string) => void
 }
 
-function ctaLink(contacts?: ContactsBlock) {
-  if (contacts?.phone) return phoneHref(contacts.phone)
-  if (contacts?.telegram) return telegramUrl(contacts.telegram)
+function ctaLink(c?: ContactsBlock) {
+  if (c?.phone) return phoneHref(c.phone)
+  if (c?.whatsapp) return whatsappUrl(c.whatsapp)
+  if (c?.telegram) return telegramUrl(c.telegram)
+  if (c?.email) return mailtoHref(c.email)
   return '#contacts'
 }
 
@@ -42,7 +44,17 @@ export default function SiteRenderer({ page, editable = false, onEdit = () => {}
             case 'features':
               return <Features key={i} block={block} i={i} />
             case 'contacts':
-              if (!block.address && !block.phone && !block.telegram && !block.hours) return null
+              if (
+                !block.address &&
+                !block.phone &&
+                !block.email &&
+                !block.whatsapp &&
+                !block.telegram &&
+                !block.instagram &&
+                !block.hours
+              ) {
+                return null
+              }
               return <Contacts key={i} block={block} i={i} />
           }
         })}

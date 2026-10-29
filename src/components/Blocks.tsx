@@ -1,6 +1,6 @@
 import { useContext } from 'react'
 import type { HeroBlock, ServicesBlock, FeaturesBlock, ContactsBlock } from '../types'
-import { phoneHref, telegramUrl } from '../links'
+import { instagramUrl, mailtoHref, phoneHref, telegramUrl, whatsappUrl } from '../links'
 import { Editable } from './Editable'
 import { EditContext } from './editContext'
 
@@ -113,6 +113,16 @@ export function Features({ block, i }: { block: FeaturesBlock; i: number }) {
   )
 }
 
+type Channel = 'phone' | 'email' | 'whatsapp' | 'telegram' | 'instagram'
+
+const channels: { key: Channel; href: (v: string) => string; prefix?: string; external?: boolean }[] = [
+  { key: 'phone', href: phoneHref },
+  { key: 'email', href: mailtoHref },
+  { key: 'whatsapp', href: whatsappUrl, prefix: 'WhatsApp: ', external: true },
+  { key: 'telegram', href: telegramUrl, prefix: 'Telegram: ', external: true },
+  { key: 'instagram', href: instagramUrl, prefix: 'Instagram: ', external: true },
+]
+
 export function Contacts({ block, i }: { block: ContactsBlock; i: number }) {
   const { editable } = useContext(EditContext)
   const link = 'underline-offset-4 hover:underline'
@@ -130,28 +140,29 @@ export function Contacts({ block, i }: { block: ContactsBlock; i: number }) {
       {block.address && (
         <Editable as="p" path={['blocks', i, 'address']} value={block.address} className="block" />
       )}
-      {block.phone && (
-        <p className="mt-1">
-          {editable ? (
-            <Editable path={['blocks', i, 'phone']} value={block.phone} />
-          ) : (
-            <a href={phoneHref(block.phone)} className={link}>
-              {block.phone}
-            </a>
-          )}
-        </p>
-      )}
-      {block.telegram && (
-        <p className="mt-1">
-          {editable ? (
-            <Editable path={['blocks', i, 'telegram']} value={block.telegram} />
-          ) : (
-            <a href={telegramUrl(block.telegram)} className={link} target="_blank" rel="noreferrer">
-              Telegram: {block.telegram}
-            </a>
-          )}
-        </p>
-      )}
+      {channels.map(({ key, href, prefix, external }) => {
+        const value = block[key]
+        if (!value) return null
+        return (
+          <p key={key} className="mt-1">
+            {editable ? (
+              <>
+                {prefix}
+                <Editable path={['blocks', i, key]} value={value} />
+              </>
+            ) : (
+              <a
+                href={href(value)}
+                className={link}
+                {...(external ? { target: '_blank', rel: 'noreferrer' } : {})}
+              >
+                {prefix}
+                {value}
+              </a>
+            )}
+          </p>
+        )
+      })}
       {block.hours && (
         <Editable
           as="p"
