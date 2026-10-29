@@ -7,6 +7,7 @@ import SiteRenderer from './components/SiteRenderer'
 import type { Path } from './components/editContext'
 import { themes, type ThemeName } from './themes'
 import type { SiteLang, SitePage } from './types'
+import Logo from './components/Logo'
 
 type Service = { name: string; price: string }
 type Form = {
@@ -213,7 +214,7 @@ export default function App() {
     <div className="min-h-screen bg-slate-100 text-slate-900">
       <header className="border-b border-slate-200 bg-white/80 px-6 py-4 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center gap-3">
-          <img src="/public/favicon.svg" alt="" className="size-8" />
+          <Logo className="size-8" />
           <h1 className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-xl font-bold text-transparent">
             AI Site Builder
           </h1>
