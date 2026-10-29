@@ -6,7 +6,7 @@ import {
   type ContactsBlock,
   type ServicesBlock,
   type SitePage,
-} from '../src/types'
+} from '../src/types.ts'
 
 type Lang = BusinessInput['language']
 
