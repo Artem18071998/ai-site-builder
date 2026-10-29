@@ -1,13 +1,14 @@
-import { useState, type ReactNode } from 'react'
+import { useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { downloadHtml } from './export'
 import { CONTACT_EMAIL, CONTACT_TELEGRAM, CONTACT_UPWORK, CONTACT_WHATSAPP } from './config'
 import { telegramUrl } from './links'
 import { SITE_LANGUAGES, useI18n, type Key, type Lang } from './i18n'
+import Logo from './components/Logo'
+import DemoShowcase from './components/DemoShowcase'
 import SiteRenderer from './components/SiteRenderer'
 import type { Path } from './components/editContext'
-import { themes, type ThemeName } from './themes'
+import { readableOn, themes, type ThemeName } from './themes'
 import type { SiteLang, SitePage } from './types'
-import Logo from './components/Logo'
 
 type Service = { name: string; price: string }
 type Form = {
@@ -42,9 +43,12 @@ const emptyForm: Form = {
   services: [{ name: '', price: '' }],
 }
 
-const baseInput =
-  'rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200'
-const inputCls = `w-full ${baseInput}`
+const fieldBase =
+  'rounded-lg border border-black/15 bg-white px-3 py-2 text-sm outline-none transition focus-visible:border-black/40 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--ui-accent)]'
+const field = `w-full ${fieldBase}`
+
+const accentBtn =
+  'bg-[var(--ui-accent)] text-[var(--ui-on-accent)] disabled:cursor-not-allowed disabled:bg-black/10 disabled:text-black/40'
 
 function setIn(node: unknown, path: Path, value: string): unknown {
   if (path.length === 0) return value
@@ -61,7 +65,7 @@ function setIn(node: unknown, path: Path, value: string): unknown {
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="block space-y-1">
-      <span className="text-xs font-medium text-slate-600">{label}</span>
+      <span className="text-xs font-medium text-mist">{label}</span>
       {children}
     </label>
   )
@@ -78,7 +82,7 @@ function TextField(props: {
   return (
     <Field label={props.label}>
       <input
-        className={inputCls}
+        className={field}
         type={props.type ?? 'text'}
         maxLength={props.max}
         value={props.value}
@@ -89,17 +93,30 @@ function TextField(props: {
   )
 }
 
-function CustomSiteCta({ t }: { t: (key: Key) => string }) {
-  const btn = 'rounded-full px-4 py-2 text-sm font-medium transition'
+function Group({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <div className="mt-4 rounded-2xl bg-indigo-600 p-5 text-center text-white shadow-sm">
-      <p className="font-semibold">{t('cta.title')}</p>
-      <p className="mx-auto mt-1 max-w-md text-sm text-indigo-100">{t('cta.text')}</p>
-      <div className="mt-4 flex flex-wrap justify-center gap-2">
+    <div
+      role="group"
+      aria-label={title}
+      className="space-y-3 border-t border-black/10 pt-4 first:border-t-0 first:pt-0"
+    >
+      <h2 className="font-display text-sm font-semibold tracking-tight">{title}</h2>
+      {children}
+    </div>
+  )
+}
+
+function CustomSiteCta({ t }: { t: (key: Key) => string }) {
+  const btn = 'rounded-full bg-white/10 px-4 py-2 text-sm font-medium transition hover:bg-white/20'
+  return (
+    <div className="mt-5 rounded-xl bg-graphite p-5 text-white">
+      <p className="font-display text-base font-semibold tracking-tight">{t('cta.title')}</p>
+      <p className="mt-1 max-w-md text-sm text-white/70">{t('cta.text')}</p>
+      <div className="mt-4 flex flex-wrap gap-2">
         {CONTACT_EMAIL && (
           <a
             href={`mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent('Custom website')}`}
-            className={`${btn} bg-white text-indigo-700 hover:bg-indigo-50`}
+            className="rounded-full bg-white px-4 py-2 text-sm font-medium text-graphite transition hover:bg-white/85"
           >
             {t('cta.email')}
           </a>
@@ -109,28 +126,18 @@ function CustomSiteCta({ t }: { t: (key: Key) => string }) {
             href={`https://wa.me/${CONTACT_WHATSAPP.replace(/\D/g, '')}?text=${encodeURIComponent('Hi! I need a custom website.')}`}
             target="_blank"
             rel="noreferrer"
-            className={`${btn} bg-emerald-500 hover:bg-emerald-400`}
+            className={btn}
           >
             WhatsApp
           </a>
         )}
         {CONTACT_TELEGRAM && (
-          <a
-            href={telegramUrl(CONTACT_TELEGRAM)}
-            target="_blank"
-            rel="noreferrer"
-            className={`${btn} bg-indigo-500 hover:bg-indigo-400`}
-          >
+          <a href={telegramUrl(CONTACT_TELEGRAM)} target="_blank" rel="noreferrer" className={btn}>
             Telegram
           </a>
         )}
         {CONTACT_UPWORK && (
-          <a
-            href={CONTACT_UPWORK}
-            target="_blank"
-            rel="noreferrer"
-            className={`${btn} bg-indigo-500 hover:bg-indigo-400`}
-          >
+          <a href={CONTACT_UPWORK} target="_blank" rel="noreferrer" className={btn}>
             Upwork
           </a>
         )}
@@ -143,10 +150,12 @@ export default function App() {
   const { lang, setLang, t, te } = useI18n()
   const [form, setForm] = useState<Form>(() => ({ ...emptyForm, language: lang }))
   const [page, setPage] = useState<SitePage | null>(null)
+  const [demoAccent, setDemoAccent] = useState('#2f6fed')
   const [loading, setLoading] = useState(false)
   const [cooldown, setCooldown] = useState(false)
   const [err, setErr] = useState<Err | null>(null)
   const [editing, setEditing] = useState(false)
+  const previewRef = useRef<HTMLElement>(null)
   const [userKey, setUserKey] = useState(() => {
     try {
       return localStorage.getItem('gemini-key') ?? ''
@@ -154,6 +163,12 @@ export default function App() {
       return ''
     }
   })
+
+  const accent = page?.accent ?? demoAccent
+  const rootStyle = {
+    '--ui-accent': accent,
+    '--ui-on-accent': readableOn(accent),
+  } as CSSProperties
 
   function saveKey(value: string) {
     setUserKey(value)
@@ -173,6 +188,13 @@ export default function App() {
       'services',
       form.services.map((s, i) => (i === idx ? { ...s, ...patch } : s)),
     )
+
+  // На телефоне после создания прокручиваем к результату
+  function scrollToPreview() {
+    if (!window.matchMedia('(max-width: 1023px)').matches) return
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    previewRef.current?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' })
+  }
 
   async function handleGenerate() {
     if (cooldown || loading) return
@@ -196,6 +218,7 @@ export default function App() {
         return
       }
       setPage(data as SitePage)
+      requestAnimationFrame(scrollToPreview)
     } catch {
       setErr({ code: 'NETWORK' })
     } finally {
@@ -208,26 +231,27 @@ export default function App() {
   const handleEdit = (path: Path, value: string) =>
     setPage((p) => (p ? (setIn(p, path, value) as SitePage) : p))
 
-  const limitHit = err?.code === 'LIMIT_IP' || err?.code === 'LIMIT_GLOBAL' || err?.code === 'LIMIT_IP_OWN'
+  const limitHit =
+    err?.code === 'LIMIT_IP' || err?.code === 'LIMIT_GLOBAL' || err?.code === 'LIMIT_IP_OWN'
 
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-900">
-      <header className="border-b border-slate-200 bg-white/80 px-6 py-4 backdrop-blur">
+    <div
+      className="chameleon min-h-screen bg-chalk font-sans text-graphite"
+      style={rootStyle}
+    >
+      <header className="px-6 py-4">
         <div className="mx-auto flex max-w-7xl items-center gap-3">
           <Logo className="size-8" />
-          <h1 className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-xl font-bold text-transparent">
-            AI Site Builder
-          </h1>
-          <p className="hidden text-sm text-slate-500 sm:block">{t('tagline')}</p>
+          <h1 className="font-display text-lg font-semibold tracking-tight">AI Site Builder</h1>
+          <p className="hidden text-sm text-mist md:block">{t('tagline')}</p>
           <div className="ml-auto flex gap-1">
             {(['en', 'uk', 'ru'] as Lang[]).map((l) => (
               <button
                 key={l}
                 onClick={() => setLang(l)}
+                aria-pressed={lang === l}
                 className={`rounded-full px-2.5 py-1 text-xs font-medium transition ${
-                  lang === l
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  lang === l ? 'bg-graphite text-white' : 'bg-black/5 hover:bg-black/10'
                 }`}
               >
                 {l.toUpperCase()}
@@ -237,51 +261,50 @@ export default function App() {
         </div>
       </header>
 
-      <main className="mx-auto grid max-w-7xl gap-6 p-6 lg:grid-cols-[400px_1fr]">
-        <section className="space-y-4 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-          <Field label={t('f.desc')}>
-            <textarea
-              rows={4}
-              maxLength={1500}
-              value={form.description}
-              onChange={(e) => set('description', e.target.value)}
-              placeholder={t('f.desc.ph')}
-              className={inputCls}
-            />
-          </Field>
+      <main className="mx-auto grid max-w-7xl gap-6 px-6 pb-10 lg:grid-cols-[400px_1fr]">
+        <section className="space-y-5 rounded-2xl bg-white p-5 ring-1 ring-black/5">
+          <Group title={t('g.business')}>
+            <Field label={t('f.desc')}>
+              <textarea
+                rows={4}
+                maxLength={1500}
+                value={form.description}
+                onChange={(e) => set('description', e.target.value)}
+                placeholder={t('f.desc.ph')}
+                className={field}
+              />
+            </Field>
+            <div className="grid grid-cols-2 gap-3">
+              <TextField label={t('f.name')} value={form.name} max={80} onChange={(v) => set('name', v)} />
+              <TextField label={t('f.city')} value={form.city} max={60} onChange={(v) => set('city', v)} />
+            </div>
+            <Field label={t('f.siteLang')}>
+              <select
+                className={field}
+                value={form.language}
+                onChange={(e) => set('language', e.target.value as SiteLang)}
+              >
+                {SITE_LANGUAGES.map((l) => (
+                  <option key={l.code} value={l.code}>
+                    {l.label}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </Group>
 
-          <div className="grid grid-cols-2 gap-3">
-            <TextField label={t('f.name')} value={form.name} max={80} onChange={(v) => set('name', v)} />
-            <TextField label={t('f.city')} value={form.city} max={60} onChange={(v) => set('city', v)} />
-          </div>
-
-          <Field label={t('f.siteLang')}>
-            <select
-              className={inputCls}
-              value={form.language}
-              onChange={(e) => set('language', e.target.value as SiteLang)}
-            >
-              {SITE_LANGUAGES.map((l) => (
-                <option key={l.code} value={l.code}>
-                  {l.label}
-                </option>
-              ))}
-            </select>
-          </Field>
-
-          <div className="space-y-2">
-            <span className="text-xs font-medium text-slate-600">{t('f.services')}</span>
+          <Group title={t('f.services')}>
             {form.services.map((s, idx) => (
               <div key={idx} className="flex gap-2">
                 <input
-                  className={`${baseInput} min-w-0 flex-1`}
+                  className={`${fieldBase} min-w-0 flex-1`}
                   placeholder={t('f.service.ph')}
                   maxLength={80}
                   value={s.name}
                   onChange={(e) => updateService(idx, { name: e.target.value })}
                 />
                 <input
-                  className={`${baseInput} w-28 shrink-0`}
+                  className={`${fieldBase} w-28 shrink-0`}
                   placeholder={t('f.price.ph')}
                   maxLength={40}
                   value={s.price}
@@ -290,7 +313,7 @@ export default function App() {
                 {form.services.length > 1 && (
                   <button
                     onClick={() => set('services', form.services.filter((_, i) => i !== idx))}
-                    className="rounded-lg px-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                    className="rounded-lg px-2 text-mist transition hover:bg-black/5 hover:text-graphite"
                     aria-label={t('f.removeService')}
                   >
                     ✕
@@ -301,27 +324,29 @@ export default function App() {
             {form.services.length < 8 && (
               <button
                 onClick={() => set('services', [...form.services, { name: '', price: '' }])}
-                className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
+                className="text-sm font-medium underline underline-offset-4 hover:no-underline"
               >
                 {t('f.addService')}
               </button>
             )}
-          </div>
+          </Group>
 
-          <div className="grid grid-cols-2 gap-3">
-            <TextField label={t('f.phone')} value={form.phone} max={30} placeholder="+1 ..." onChange={(v) => set('phone', v)} />
-            <TextField label={t('f.email')} value={form.email} max={120} type="email" placeholder="hello@example.com" onChange={(v) => set('email', v)} />
-            <TextField label={t('f.whatsapp')} value={form.whatsapp} max={40} placeholder="+44 7700 900123" onChange={(v) => set('whatsapp', v)} />
-            <TextField label={t('f.telegram')} value={form.telegram} max={60} placeholder="@username" onChange={(v) => set('telegram', v)} />
-            <TextField label={t('f.instagram')} value={form.instagram} max={60} placeholder="@username" onChange={(v) => set('instagram', v)} />
-            <TextField label={t('f.address')} value={form.address} max={120} onChange={(v) => set('address', v)} />
-            <div className="col-span-2">
-              <TextField label={t('f.hours')} value={form.hours} max={60} placeholder={t('f.hours.ph')} onChange={(v) => set('hours', v)} />
+          <Group title={t('g.contacts')}>
+            <div className="grid grid-cols-2 gap-3">
+              <TextField label={t('f.phone')} value={form.phone} max={30} placeholder="+1 ..." onChange={(v) => set('phone', v)} />
+              <TextField label={t('f.email')} value={form.email} max={120} type="email" placeholder="hello@example.com" onChange={(v) => set('email', v)} />
+              <TextField label={t('f.whatsapp')} value={form.whatsapp} max={40} placeholder="+44 7700 900123" onChange={(v) => set('whatsapp', v)} />
+              <TextField label={t('f.telegram')} value={form.telegram} max={60} placeholder="@username" onChange={(v) => set('telegram', v)} />
+              <TextField label={t('f.instagram')} value={form.instagram} max={60} placeholder="@username" onChange={(v) => set('instagram', v)} />
+              <TextField label={t('f.address')} value={form.address} max={120} onChange={(v) => set('address', v)} />
+              <div className="col-span-2">
+                <TextField label={t('f.hours')} value={form.hours} max={60} placeholder={t('f.hours.ph')} onChange={(v) => set('hours', v)} />
+              </div>
             </div>
-          </div>
+          </Group>
 
-          <details className="rounded-lg border border-slate-200 p-3 text-xs text-slate-600">
-            <summary className="cursor-pointer font-medium">{t('key.summary')}</summary>
+          <details className="rounded-lg border border-black/10 p-3 text-xs text-mist">
+            <summary className="cursor-pointer font-medium text-graphite">{t('key.summary')}</summary>
             <ol className="mt-2 list-decimal space-y-1 pl-4 leading-relaxed">
               <li>
                 {t('key.s1a')}{' '}
@@ -329,7 +354,7 @@ export default function App() {
                   href="https://aistudio.google.com/apikey"
                   target="_blank"
                   rel="noreferrer"
-                  className="font-medium text-indigo-600 underline"
+                  className="font-medium text-graphite underline"
                 >
                   Google AI Studio
                 </a>{' '}
@@ -345,79 +370,94 @@ export default function App() {
               value={userKey}
               onChange={(e) => saveKey(e.target.value)}
               placeholder="AIza..."
-              className={`${inputCls} mt-2`}
+              className={`${field} mt-2`}
             />
           </details>
 
-          <p className="text-xs leading-relaxed text-slate-500">{t('privacy')}</p>
-
-          <button
-            onClick={handleGenerate}
-            disabled={form.description.trim().length < 10 || loading || cooldown}
-            className="w-full rounded-xl bg-indigo-600 px-4 py-2.5 font-medium text-white shadow-sm transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-300"
-          >
-            {loading ? t('btn.generating') : cooldown ? t('btn.wait') : t('btn.generate')}
-          </button>
+          <p className="text-xs leading-relaxed text-mist">{t('privacy')}</p>
 
           {err && (
-            <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{te(err.code, err.fallback)}</p>
+            <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+              {te(err.code, err.fallback)}
+            </p>
           )}
+
+          <div className="sticky bottom-0 -mx-5 -mb-5 rounded-b-2xl border-t border-black/10 bg-white/95 px-5 py-4 backdrop-blur">
+            <button
+              onClick={handleGenerate}
+              disabled={form.description.trim().length < 10 || loading || cooldown}
+              className={`w-full rounded-xl px-4 py-3 font-semibold transition hover:brightness-95 ${accentBtn}`}
+            >
+              {loading ? t('btn.generating') : cooldown ? t('btn.wait') : t('btn.generate')}
+            </button>
+          </div>
         </section>
 
-        <section className="lg:sticky lg:top-6 lg:self-start">
-          <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
-            <div className="flex items-center gap-1.5 border-b border-slate-200 bg-slate-50 px-4 py-2.5">
-              <span className="size-2.5 rounded-full bg-red-400" />
-              <span className="size-2.5 rounded-full bg-amber-400" />
-              <span className="size-2.5 rounded-full bg-emerald-400" />
-              <span className="ml-3 text-xs text-slate-400">{t('preview')}</span>
-            </div>
-
-            {page && (
-              <div className="flex flex-wrap items-center gap-4 border-b border-slate-200 px-4 py-2.5 text-sm">
-                <label className="flex items-center gap-2">
-                  <input type="checkbox" checked={editing} onChange={(e) => setEditing(e.target.checked)} />
-                  {t('edit')}
-                </label>
-                <div className="flex gap-1">
-                  {(Object.keys(themes) as ThemeName[]).map((name) => (
-                    <button
-                      key={name}
-                      onClick={() => setPage({ ...page, theme: name })}
-                      className={`rounded-full px-3 py-1 text-xs font-medium transition ${
-                        page.theme === name
-                          ? 'bg-indigo-600 text-white'
-                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                      }`}
-                    >
-                      {t(`theme.${name}` as Key)}
-                    </button>
-                  ))}
-                </div>
-                <label className="flex items-center gap-2">
-                  {t('color')}
-                  <input
-                    type="color"
-                    value={page.accent}
-                    onChange={(e) => setPage({ ...page, accent: e.target.value })}
-                    className="h-6 w-8 cursor-pointer rounded border border-slate-300"
-                  />
-                </label>
-                <button
-                  onClick={() => downloadHtml(page)}
-                  className="ml-auto rounded-full bg-slate-900 px-4 py-1.5 text-xs font-medium text-white transition hover:bg-slate-700"
-                >
-                  {t('download')}
-                </button>
+        <section ref={previewRef} className="scroll-mt-4 lg:sticky lg:top-6 lg:self-start">
+          <div
+            className="rounded-[2rem] p-4 sm:p-6"
+            style={{ background: 'color-mix(in oklab, var(--ui-accent) 16%, white)' }}
+          >
+            <div className="overflow-hidden rounded-xl bg-white shadow-[6px_6px_0_0_var(--ui-accent)] ring-1 ring-black/10">
+              <div className="flex items-center justify-between gap-3 border-b border-black/10 px-4 py-2.5 text-xs text-mist">
+                <span className="truncate">{page ? page.businessName : t('preview')}</span>
+                {!page && (
+                  <span className="shrink-0 rounded-full bg-graphite px-2 py-0.5 font-medium text-white">
+                    {t('demo.badge')}
+                  </span>
+                )}
               </div>
-            )}
 
-            <div className="max-h-[75vh] min-h-96 overflow-auto">
-              {page ? (
-                <SiteRenderer page={page} editable={editing} onEdit={handleEdit} />
-              ) : (
-                <p className="p-8 text-slate-400">{t('empty')}</p>
+              {page && (
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-black/10 px-4 py-2.5 text-sm">
+                  <label className="flex cursor-pointer items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={editing}
+                      onChange={(e) => setEditing(e.target.checked)}
+                      className="size-4 accent-[var(--ui-accent)]"
+                    />
+                    {t('edit')}
+                  </label>
+                  <div className="flex gap-1">
+                    {(Object.keys(themes) as ThemeName[]).map((name) => (
+                      <button
+                        key={name}
+                        onClick={() => setPage({ ...page, theme: name })}
+                        aria-pressed={page.theme === name}
+                        className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                          page.theme === name ? 'bg-graphite text-white' : 'bg-black/5 hover:bg-black/10'
+                        }`}
+                      >
+                        {t(`theme.${name}` as Key)}
+                      </button>
+                    ))}
+                  </div>
+                  <label className="flex items-center gap-2">
+                    {t('color')}
+                    <input
+                      type="color"
+                      value={page.accent}
+                      onChange={(e) => setPage({ ...page, accent: e.target.value })}
+                      className="h-6 w-8 cursor-pointer rounded border border-black/20"
+                    />
+                  </label>
+                  <button
+                    onClick={() => downloadHtml(page)}
+                    className={`ml-auto rounded-full px-4 py-1.5 text-xs font-semibold transition hover:brightness-95 ${accentBtn}`}
+                  >
+                    {t('download')}
+                  </button>
+                </div>
               )}
+
+              <div className="max-h-[70vh] min-h-96 overflow-auto">
+                {page ? (
+                  <SiteRenderer page={page} editable={editing} onEdit={handleEdit} />
+                ) : (
+                  <DemoShowcase lang={lang} onAccent={setDemoAccent} />
+                )}
+              </div>
             </div>
           </div>
 

@@ -81,6 +81,9 @@ const en = {
   'err.INTERNAL': 'Internal server error.',
   'err.NETWORK': 'Could not reach the server. Check your connection.',
   'err.UNKNOWN': 'Something went wrong. Please try again.',
+  'g.business': 'Your business',
+  'g.contacts': 'How clients reach you',
+  'demo.badge': 'Example',
 }
 
 export type Key = keyof typeof en
@@ -153,6 +156,9 @@ const ru: Record<Key, string> = {
   'err.INTERNAL': 'Внутренняя ошибка сервера.',
   'err.NETWORK': 'Не удалось связаться с сервером. Проверьте интернет.',
   'err.UNKNOWN': 'Что-то пошло не так. Попробуйте ещё раз.',
+  'g.business': 'Ваш бизнес',
+  'g.contacts': 'Как с вами связаться',
+  'demo.badge': 'Пример',
 }
 
 const uk: Record<Key, string> = {
@@ -223,6 +229,9 @@ const uk: Record<Key, string> = {
   'err.INTERNAL': 'Внутрішня помилка сервера.',
   'err.NETWORK': 'Не вдалося зв’язатися з сервером. Перевірте інтернет.',
   'err.UNKNOWN': 'Щось пішло не так. Спробуйте ще раз.',
+  'g.business': 'Ваш бізнес',
+  'g.contacts': 'Як із вами зв’язатися',
+  'demo.badge': 'Приклад',
 }
 
 const dict: Record<Lang, Record<Key, string>> = { en, ru, uk }

@@ -1,1 +1,47 @@
 @import "tailwindcss";
+@import "@fontsource-variable/unbounded";
+@import "@fontsource-variable/onest";
+
+@theme {
+  --font-display: "Unbounded Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Onest Variable", ui-sans-serif, system-ui, sans-serif;
+  --color-chalk: #eceef1;
+  --color-graphite: #23262b;
+  --color-mist: #6b7280;
+}
+
+/* Регистрация переменных позволяет цвету интерфейса плавно перетекать */
+@property --ui-accent {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #2f6fed;
+}
+@property --ui-on-accent {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #ffffff;
+}
+
+.chameleon {
+  transition:
+    --ui-accent 900ms ease,
+    --ui-on-accent 900ms ease;
+}
+
+@keyframes demo-in {
+  from {
+    opacity: 0;
+  }
+}
+.demo-in {
+  animation: demo-in 600ms ease both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chameleon {
+    transition: none;
+  }
+  .demo-in {
+    animation: none;
+  }
+}

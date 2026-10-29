@@ -6,7 +6,8 @@ function collectCss() {
   return Array.from(document.styleSheets)
     .map((sheet) => {
       try {
-        return Array.from(sheet.cssRules)
+          return Array.from(sheet.cssRules)
+          .filter((rule) => !(rule instanceof CSSFontFaceRule))
           .map((rule) => rule.cssText)
           .join('\n')
       } catch {
