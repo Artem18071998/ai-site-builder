@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { downloadHtml } from './export'
-import { CONTACT_EMAIL, CONTACT_TELEGRAM, CONTACT_UPWORK } from './config'
+import { CONTACT_EMAIL, CONTACT_TELEGRAM, CONTACT_UPWORK, CONTACT_WHATSAPP } from './config'
 import { telegramUrl } from './links'
 import { SITE_LANGUAGES, useI18n, type Key, type Lang } from './i18n'
 import SiteRenderer from './components/SiteRenderer'
@@ -101,6 +101,16 @@ function CustomSiteCta({ t }: { t: (key: Key) => string }) {
             className={`${btn} bg-white text-indigo-700 hover:bg-indigo-50`}
           >
             {t('cta.email')}
+          </a>
+        )}
+        {CONTACT_WHATSAPP && (
+          <a
+            href={`https://wa.me/${CONTACT_WHATSAPP.replace(/\D/g, '')}?text=${encodeURIComponent('Hi! I need a custom website.')}`}
+            target="_blank"
+            rel="noreferrer"
+            className={`${btn} bg-emerald-500 hover:bg-emerald-400`}
+          >
+            WhatsApp
           </a>
         )}
         {CONTACT_TELEGRAM && (
@@ -300,7 +310,7 @@ export default function App() {
           <div className="grid grid-cols-2 gap-3">
             <TextField label={t('f.phone')} value={form.phone} max={30} placeholder="+1 ..." onChange={(v) => set('phone', v)} />
             <TextField label={t('f.email')} value={form.email} max={120} type="email" placeholder="hello@example.com" onChange={(v) => set('email', v)} />
-            <TextField label={t('f.whatsapp')} value={form.whatsapp} max={40} placeholder="+1 ..." onChange={(v) => set('whatsapp', v)} />
+            <TextField label={t('f.whatsapp')} value={form.whatsapp} max={40} placeholder="+44 7700 900123" onChange={(v) => set('whatsapp', v)} />
             <TextField label={t('f.telegram')} value={form.telegram} max={60} placeholder="@username" onChange={(v) => set('telegram', v)} />
             <TextField label={t('f.instagram')} value={form.instagram} max={60} placeholder="@username" onChange={(v) => set('instagram', v)} />
             <TextField label={t('f.address')} value={form.address} max={120} onChange={(v) => set('address', v)} />
