@@ -128,12 +128,13 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900">
       <header className="border-b border-slate-200 bg-white/80 px-6 py-4 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-baseline gap-3">
-          <h1 className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-xl font-bold text-transparent">
-            AI Site Builder
-          </h1>
-          <p className="text-sm text-slate-500">Сайт-визитка за пару минут</p>
-        </div>
+        <div className="mx-auto flex max-w-7xl items-center gap-3">
+  <img src="/favicon.svg" alt="" className="size-8" />
+  <h1 className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-xl font-bold text-transparent">
+    AI Site Builder
+  </h1>
+  <p className="text-sm text-slate-500">Сайт-визитка за пару минут</p>
+</div>
       </header>
 
       <main className="mx-auto grid max-w-7xl gap-6 p-6 lg:grid-cols-[400px_1fr]">
