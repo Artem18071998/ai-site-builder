@@ -63,7 +63,7 @@ const en = {
   'err.OVERLOADED': 'The AI service is overloaded right now. Please try again in a minute.',
   'err.AI_RATE_LIMIT': 'The AI request limit was reached. Please try again in a minute.',
   'err.AI_BAD_RESPONSE': 'The AI returned an invalid answer. Please try again.',
-  'err.KEY_REJECTED': 'Google rejected the API key. Check that it was copied completely.',
+  'err.KEY_REJECTED': 'Google rejected the API key, so it was removed. Paste it again and check that it is copied completely.',
   'err.UPSTREAM': 'The AI service returned an error. Please try again later.',
   'err.FOREIGN_ORIGIN': 'A request from another site was rejected.',
   'err.REGION':
@@ -84,6 +84,15 @@ const en = {
   'g.business': 'Your business',
   'g.contacts': 'How clients reach you',
   'demo.badge': 'Example',
+  'rail.title': 'Page blocks',
+  'rail.up': 'Move up',
+  'rail.down': 'Move down',
+  'block.hero': 'Intro',
+  'block.services': 'Services',
+  'block.features': 'Benefits',
+  'block.contacts': 'Contacts',
+  'key.set': 'key saved',
+  'key.clear': 'Remove key',
 }
 
 export type Key = keyof typeof en
@@ -138,7 +147,7 @@ const ru: Record<Key, string> = {
   'err.OVERLOADED': 'AI-сервис сейчас перегружен. Попробуйте через минуту.',
   'err.AI_RATE_LIMIT': 'Достигнут лимит запросов к AI. Попробуйте через минуту.',
   'err.AI_BAD_RESPONSE': 'AI вернул неверный ответ. Попробуйте ещё раз.',
-  'err.KEY_REJECTED': 'Google отклонил ключ API. Проверьте, что он скопирован полностью.',
+  'err.KEY_REJECTED': 'Google отклонил ключ API, поэтому он удалён. Вставьте его снова и проверьте, что он скопирован полностью.',
   'err.UPSTREAM': 'AI-сервис вернул ошибку. Попробуйте позже.',
   'err.FOREIGN_ORIGIN': 'Запрос с чужого сайта отклонён.',
   'err.REGION':
@@ -159,6 +168,15 @@ const ru: Record<Key, string> = {
   'g.business': 'Ваш бизнес',
   'g.contacts': 'Как с вами связаться',
   'demo.badge': 'Пример',
+  'rail.title': 'Блоки страницы',
+  'rail.up': 'Выше',
+  'rail.down': 'Ниже',
+  'block.hero': 'Главный экран',
+  'block.services': 'Услуги',
+  'block.features': 'Плюсы',
+  'block.contacts': 'Контакты',
+  'key.set': 'ключ задан',
+  'key.clear': 'Удалить ключ',
 }
 
 const uk: Record<Key, string> = {
@@ -211,7 +229,7 @@ const uk: Record<Key, string> = {
   'err.OVERLOADED': 'AI-сервіс зараз перевантажений. Спробуйте за хвилину.',
   'err.AI_RATE_LIMIT': 'Досягнуто ліміт запитів до AI. Спробуйте за хвилину.',
   'err.AI_BAD_RESPONSE': 'AI повернув некоректну відповідь. Спробуйте ще раз.',
-  'err.KEY_REJECTED': 'Google відхилив ключ API. Перевірте, що його скопійовано повністю.',
+  'err.KEY_REJECTED': 'Google відхилив ключ API, тому його видалено. Вставте його знову й перевірте, що його скопійовано повністю.',
   'err.UPSTREAM': 'AI-сервіс повернув помилку. Спробуйте пізніше.',
   'err.FOREIGN_ORIGIN': 'Запит із чужого сайту відхилено.',
   'err.REGION':
@@ -232,6 +250,15 @@ const uk: Record<Key, string> = {
   'g.business': 'Ваш бізнес',
   'g.contacts': 'Як із вами зв’язатися',
   'demo.badge': 'Приклад',
+  'rail.title': 'Блоки сторінки',
+  'rail.up': 'Вище',
+  'rail.down': 'Нижче',
+  'block.hero': 'Головний екран',
+  'block.services': 'Послуги',
+  'block.features': 'Переваги',
+  'block.contacts': 'Контакти',
+  'key.set': 'ключ задано',
+  'key.clear': 'Видалити ключ',
 }
 
 const dict: Record<Lang, Record<Key, string>> = { en, ru, uk }

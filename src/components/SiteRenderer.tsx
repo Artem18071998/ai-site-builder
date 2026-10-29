@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import type { ContactsBlock, SitePage } from '../types'
 import { mailtoHref, phoneHref, telegramUrl, whatsappUrl } from '../links'
 import { readableOn, themeStyle } from '../themes'
@@ -10,6 +10,7 @@ type Props = {
   page: SitePage
   editable?: boolean
   onEdit?: (path: Path, value: string) => void
+  assemble?: boolean
 }
 
 function ctaLink(c?: ContactsBlock) {
@@ -20,7 +21,12 @@ function ctaLink(c?: ContactsBlock) {
   return '#contacts'
 }
 
-export default function SiteRenderer({ page, editable = false, onEdit = () => {} }: Props) {
+export default function SiteRenderer({
+  page,
+  editable = false,
+  onEdit = () => {},
+  assemble = false,
+}: Props) {
   const contacts = page.blocks.find((b): b is ContactsBlock => b.type === 'contacts')
   const style = {
     ...themeStyle(page.theme),
@@ -36,13 +42,25 @@ export default function SiteRenderer({ page, editable = false, onEdit = () => {}
           <Editable path={['businessName']} value={page.businessName} />
         </header>
         {page.blocks.map((block, i) => {
+          if (block.hidden) return null
+
+          const wrap = (node: ReactNode) => (
+            <div
+              key={i}
+              className={assemble ? 'assemble' : undefined}
+              style={assemble ? { animationDelay: `${i * 140}ms` } : undefined}
+            >
+              {node}
+            </div>
+          )
+
           switch (block.type) {
             case 'hero':
-              return <Hero key={i} block={block} i={i} ctaHref={ctaLink(contacts)} />
+              return wrap(<Hero block={block} i={i} ctaHref={ctaLink(contacts)} />)
             case 'services':
-              return <Services key={i} block={block} i={i} />
+              return wrap(<Services block={block} i={i} />)
             case 'features':
-              return <Features key={i} block={block} i={i} />
+              return wrap(<Features block={block} i={i} />)
             case 'contacts':
               if (
                 !block.address &&
@@ -55,7 +73,7 @@ export default function SiteRenderer({ page, editable = false, onEdit = () => {}
               ) {
                 return null
               }
-              return <Contacts key={i} block={block} i={i} />
+              return wrap(<Contacts block={block} i={i} />)
           }
         })}
       </div>

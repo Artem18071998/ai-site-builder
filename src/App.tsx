@@ -9,6 +9,7 @@ import SiteRenderer from './components/SiteRenderer'
 import type { Path } from './components/editContext'
 import { readableOn, themes, type ThemeName } from './themes'
 import type { SiteLang, SitePage } from './types'
+import BlockRail from './components/BlockRail'
 
 type Service = { name: string; price: string }
 type Form = {
@@ -156,6 +157,7 @@ export default function App() {
   const [err, setErr] = useState<Err | null>(null)
   const [editing, setEditing] = useState(false)
   const previewRef = useRef<HTMLElement>(null)
+  const [genId, setGenId] = useState(0)
   const [userKey, setUserKey] = useState(() => {
     try {
       return localStorage.getItem('gemini-key') ?? ''
@@ -214,10 +216,12 @@ export default function App() {
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
+        if (data.code === 'KEY_REJECTED') saveKey('')
         setErr({ code: data.code ?? 'UNKNOWN', fallback: data.error })
         return
       }
       setPage(data as SitePage)
+      setGenId((g) => g + 1)
       requestAnimationFrame(scrollToPreview)
     } catch {
       setErr({ code: 'NETWORK' })
@@ -230,6 +234,9 @@ export default function App() {
 
   const handleEdit = (path: Path, value: string) =>
     setPage((p) => (p ? (setIn(p, path, value) as SitePage) : p))
+
+  const updateBlocks = (blocks: SitePage['blocks']) =>
+    setPage((p) => (p ? { ...p, blocks } : p))
 
   const limitHit =
     err?.code === 'LIMIT_IP' || err?.code === 'LIMIT_GLOBAL' || err?.code === 'LIMIT_IP_OWN'
@@ -346,7 +353,14 @@ export default function App() {
           </Group>
 
           <details className="rounded-lg border border-black/10 p-3 text-xs text-mist">
-            <summary className="cursor-pointer font-medium text-graphite">{t('key.summary')}</summary>
+                        <summary className="cursor-pointer font-medium text-graphite">
+              {t('key.summary')}
+              {userKey.trim() && (
+                <span className="ml-2 rounded-full bg-graphite px-2 py-0.5 text-[10px] font-medium text-white">
+                  {t('key.set')}
+                </span>
+              )}
+            </summary>
             <ol className="mt-2 list-decimal space-y-1 pl-4 leading-relaxed">
               <li>
                 {t('key.s1a')}{' '}
@@ -372,6 +386,15 @@ export default function App() {
               placeholder="AIza..."
               className={`${field} mt-2`}
             />
+                        {userKey.trim() && (
+              <button
+                type="button"
+                onClick={() => saveKey('')}
+                className="mt-2 text-xs font-medium underline underline-offset-4 hover:no-underline"
+              >
+                {t('key.clear')}
+              </button>
+            )}
           </details>
 
           <p className="text-xs leading-relaxed text-mist">{t('privacy')}</p>
@@ -393,75 +416,93 @@ export default function App() {
           </div>
         </section>
 
-        <section ref={previewRef} className="scroll-mt-4 lg:sticky lg:top-6 lg:self-start">
-          <div
-            className="rounded-[2rem] p-4 sm:p-6"
-            style={{ background: 'color-mix(in oklab, var(--ui-accent) 16%, white)' }}
-          >
-            <div className="overflow-hidden rounded-xl bg-white shadow-[6px_6px_0_0_var(--ui-accent)] ring-1 ring-black/10">
-              <div className="flex items-center justify-between gap-3 border-b border-black/10 px-4 py-2.5 text-xs text-mist">
-                <span className="truncate">{page ? page.businessName : t('preview')}</span>
-                {!page && (
-                  <span className="shrink-0 rounded-full bg-graphite px-2 py-0.5 font-medium text-white">
-                    {t('demo.badge')}
-                  </span>
-                )}
-              </div>
+                <section ref={previewRef} className="scroll-mt-4 lg:sticky lg:top-6 lg:self-start">
+          <div className={`grid gap-4 ${page ? 'xl:grid-cols-[200px_1fr]' : ''}`}>
+            {page && <BlockRail page={page} t={t} onChange={updateBlocks} />}
 
-              {page && (
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-black/10 px-4 py-2.5 text-sm">
-                  <label className="flex cursor-pointer items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={editing}
-                      onChange={(e) => setEditing(e.target.checked)}
-                      className="size-4 accent-[var(--ui-accent)]"
-                    />
-                    {t('edit')}
-                  </label>
-                  <div className="flex gap-1">
-                    {(Object.keys(themes) as ThemeName[]).map((name) => (
-                      <button
-                        key={name}
-                        onClick={() => setPage({ ...page, theme: name })}
-                        aria-pressed={page.theme === name}
-                        className={`rounded-full px-3 py-1 text-xs font-medium transition ${
-                          page.theme === name ? 'bg-graphite text-white' : 'bg-black/5 hover:bg-black/10'
-                        }`}
-                      >
-                        {t(`theme.${name}` as Key)}
-                      </button>
-                    ))}
+            <div>
+              <div
+                className="rounded-[2rem] p-4 sm:p-6"
+                style={{ background: 'color-mix(in oklab, var(--ui-accent) 16%, white)' }}
+              >
+                <div className="overflow-hidden rounded-xl bg-white shadow-[6px_6px_0_0_var(--ui-accent)] ring-1 ring-black/10">
+                  <div className="flex items-center justify-between gap-3 border-b border-black/10 px-4 py-2.5 text-xs text-mist">
+                    <span className="truncate">{page ? page.businessName : t('preview')}</span>
+                    {!page && (
+                      <span className="shrink-0 rounded-full bg-graphite px-2 py-0.5 font-medium text-white">
+                        {t('demo.badge')}
+                      </span>
+                    )}
                   </div>
-                  <label className="flex items-center gap-2">
-                    {t('color')}
-                    <input
-                      type="color"
-                      value={page.accent}
-                      onChange={(e) => setPage({ ...page, accent: e.target.value })}
-                      className="h-6 w-8 cursor-pointer rounded border border-black/20"
-                    />
-                  </label>
-                  <button
-                    onClick={() => downloadHtml(page)}
-                    className={`ml-auto rounded-full px-4 py-1.5 text-xs font-semibold transition hover:brightness-95 ${accentBtn}`}
-                  >
-                    {t('download')}
-                  </button>
-                </div>
-              )}
 
-              <div className="max-h-[70vh] min-h-96 overflow-auto">
-                {page ? (
-                  <SiteRenderer page={page} editable={editing} onEdit={handleEdit} />
-                ) : (
-                  <DemoShowcase lang={lang} onAccent={setDemoAccent} />
-                )}
+                  {page && (
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-black/10 px-4 py-2.5 text-sm">
+                      <label className="flex cursor-pointer items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={editing}
+                          onChange={(e) => setEditing(e.target.checked)}
+                          className="size-4 accent-[var(--ui-accent)]"
+                        />
+                        {t('edit')}
+                      </label>
+                      <div className="flex gap-1">
+                        {(Object.keys(themes) as ThemeName[]).map((name) => (
+                          <button
+                            key={name}
+                            onClick={() => setPage({ ...page, theme: name })}
+                            aria-pressed={page.theme === name}
+                            className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                              page.theme === name
+                                ? 'bg-graphite text-white'
+                                : 'bg-black/5 hover:bg-black/10'
+                            }`}
+                          >
+                            {t(`theme.${name}` as Key)}
+                          </button>
+                        ))}
+                      </div>
+                      <label className="flex items-center gap-2">
+                        {t('color')}
+                        <input
+                          type="color"
+                          value={page.accent}
+                          onChange={(e) => setPage({ ...page, accent: e.target.value })}
+                          className="h-6 w-8 cursor-pointer rounded border border-black/20"
+                        />
+                      </label>
+                      <button
+                        onClick={() => downloadHtml(page)}
+                        className={`ml-auto rounded-full px-4 py-1.5 text-xs font-semibold transition hover:brightness-95 ${accentBtn}`}
+                      >
+                        {t('download')}
+                      </button>
+                    </div>
+                  )}
+
+                  <div
+                    className={`min-h-96 ${
+                      page ? 'lg:max-h-[70vh] lg:overflow-auto' : 'max-h-[70vh] overflow-hidden'
+                    }`}
+                  >
+                    {page ? (
+                      <SiteRenderer
+                        key={genId}
+                        page={page}
+                        editable={editing}
+                        onEdit={handleEdit}
+                        assemble
+                      />
+                    ) : (
+                      <DemoShowcase lang={lang} onAccent={setDemoAccent} />
+                    )}
+                  </div>
+                </div>
               </div>
+
+              {(page || limitHit) && <CustomSiteCta t={t} />}
             </div>
           </div>
-
-          {(page || limitHit) && <CustomSiteCta t={t} />}
         </section>
       </main>
     </div>

@@ -5,6 +5,7 @@ export type SiteLang = (typeof SITE_LANGS)[number]
 
 const heroSchema = z.object({
   type: z.literal('hero'),
+    hidden: z.boolean().optional(),
   title: z.string().min(1),
   subtitle: z.string(),
   cta: z.string(),
@@ -12,6 +13,7 @@ const heroSchema = z.object({
 
 const servicesSchema = z.object({
   type: z.literal('services'),
+    hidden: z.boolean().optional(),
   title: z.string(),
   items: z
     .array(
@@ -27,12 +29,14 @@ const servicesSchema = z.object({
 
 const featuresSchema = z.object({
   type: z.literal('features'),
+    hidden: z.boolean().optional(),
   title: z.string(),
   items: z.array(z.object({ title: z.string(), text: z.string() })).min(1).max(6),
 })
 
 const contactsSchema = z.object({
   type: z.literal('contacts'),
+    hidden: z.boolean().optional(),
   title: z.string(),
   address: z.string().nullish(),
   phone: z.string().nullish(),
